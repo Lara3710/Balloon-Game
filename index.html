@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pop the Balloons! 🎈</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(45deg, #0f0c29, #6e45e2, #d63031, #7303c0);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            text-align: center;
+            padding: 20px;
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+            margin: 0;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.3);
+            max-width: 80%;
+            margin: auto;
+            backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 20; /* Higher than balloons */
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        #balloon-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 5; /* Lower than container */
+            overflow: hidden;
+        }
+
+        .balloon {
+            width: 60px;
+            height: 80px;
+            border-radius: 50%;
+            position: absolute;
+            bottom: -100px; /* Start below the screen */
+            animation: floatUp 6s linear forwards;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.2s;
+            box-shadow: inset 5px 5px 15px rgba(255, 255, 255, 0.3), 
+                        inset -5px -5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Add string to balloons */
+        .balloon::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.7);
+            bottom: -58px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        @keyframes floatUp {
+            from { bottom: -100px; }
+            to { bottom: 120vh; } /* Ensures balloons float all the way up */
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #message {
+            font-size: 1.5rem;
+            animation: fadeIn 1s ease-in-out;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            margin-top: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+        
+        #message p {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            margin: 15px 0;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        #counter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            z-index: 30;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Balloon pop animation */
+        @keyframes pop {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.4); opacity: 0.5; }
+            100% { transform: scale(1.8); opacity: 0; }
+        }
+
+        .popping {
+            animation: pop 0.3s forwards;
+        }
+        
+        /* Add scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="counter">0/10 Popped</div>
+    <div class="container">
+        <h1 id="title">Pop 10 balloons to win!</h1>
+        <div id="message" class="hidden">
+            <h1>🎉 Happy 17th Birthday Rebekka! 🎂</h1>
+            <p>Happy Birthday to my favorite angry German! 🎉 I hope you have the most amazing day because you totally deserve it. 
+                You're officially a year older now, so I guess I can't call you a baby anymore, but don't worry, I'll still find ways to tease you. 
+                Maybe this will finally be the year you beat me at chess? (Doubt it, but I'll pretend to be scared 😉).
+                You always make everyone laugh with your unique sense of humor and your genre 😂. 
+                I can't wait to see you in Sweden and I am sure it's going to be incredible! I wish you a great year full of happiness.       
+                Enjoy your special day! 🎂🎁</p>
+        </div>
+    </div>
+    <div id="balloon-container"></div>
+    <audio id="popSound" src="pop.mp3"></audio>
+
+    <script>
+        let balloonsPopped = 0;
+        const requiredPops = 10;
+        let gameActive = true;
+
+        function spawnBalloon() {
+            if (!gameActive) return; // Stop spawning if game is over
+
+            const container = document.getElementById("balloon-container");
+
+            let balloon = document.createElement("div");
+            balloon.classList.add("balloon");
+
+            // Random X position across the whole screen
+            let randomX = Math.random() * (window.innerWidth - 60); 
+            
+            // Super vibrant and interesting color combinations
+            const colorSchemes = [
+                // Neon colors
+                "linear-gradient(135deg, #FF00FF, #00FFFF)", // Magenta to Cyan
+                "linear-gradient(135deg, #FF00FF, #FFFF00)", // Magenta to Yellow
+                "linear-gradient(135deg, #FF0099, #00FFFF)", // Hot Pink to Cyan
+                
+                // Holographic/Iridescent effects
+                "linear-gradient(135deg, #8A2387, #E94057, #F27121)", // Purple to Red to Orange
+                "linear-gradient(135deg, #00F5A0, #00D9F5)", // Teal to Cyan
+                "linear-gradient(135deg, #AD1DEB, #6E72FC)", // Purple to Blue
+                
+                // Metallic and shiny
+                "linear-gradient(135deg, #FFD700, #FFA500)", // Gold to Orange
+                "linear-gradient(135deg, #B721FF, #21D4FD)", // Purple to Blue
+                
+                // Rainbow and multi-tone
+                "linear-gradient(135deg, #FC466B, #3F5EFB)", // Pink to Blue
+                "linear-gradient(135deg, #FA8BFF, #2BD2FF, #2BFF88)", // Pink to Blue to Green
+                
+                // Electric and bold
+                "linear-gradient(135deg, #8E2DE2, #4A00E0, #f5576c)", // Purple to Electric Purple to Red
+                "linear-gradient(135deg, #FF416C, #FF4B2B)", // Pink to Orange-Red
+                
+                // Cosmic and space-like
+                "conic-gradient(from 0deg, #8A2387, #E94057, #F27121, #8A2387)", // Full circle color wheel
+                "radial-gradient(circle, #FC5C7D, #6A82FB)", // Pink center to Purple edge
+                
+                // Special effects
+                "linear-gradient(135deg, #00c6ff, #0072ff)", // Bright Blue gradient
+                "linear-gradient(45deg, #FF3CAC, #784BA0, #2B86C5)" // Pink to Purple to Blue
+            ];
+            
+            const randomGradient = colorSchemes[Math.floor(Math.random() * colorSchemes.length)];
+            
+            balloon.style.left = `${randomX}px`;
+            balloon.style.background = randomGradient;
+            
+            // Add more visual interest with blend modes
+            const blendModes = ["normal", "screen", "overlay"];
+            balloon.style.mixBlendMode = blendModes[Math.floor(Math.random() * blendModes.length)];
+            
+            // Add a little randomness to animation duration and balloon size
+            let randomDuration = 5 + Math.random() * 3;
+            let randomSize = 0.8 + Math.random() * 0.4; // Size between 80% and 120%
+            
+            balloon.style.animationDuration = `${randomDuration}s`;
+            balloon.style.transform = `scale(${randomSize})`;
+            
+            // Add shine effect to some balloons
+            if (Math.random() > 0.5) {
+                balloon.style.backgroundImage = `${randomGradient}, radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 70%)`;
+            }
+            
+            balloon.onclick = function () { popBalloon(balloon); };
+
+            container.appendChild(balloon);
+
+            // Keep spawning new balloons
+            setTimeout(spawnBalloon, 800); // Spawns a new balloon every 0.8 seconds
+        }
+
+        function popBalloon(balloon) {
+            balloon.classList.add("popping");
+            
+            // Play sound with error handling
+            try {
+                const popSound = document.getElementById("popSound");
+                popSound.currentTime = 0; // Reset sound to start
+                popSound.play().catch(e => console.log("Audio couldn't play: ", e));
+            } catch (error) {
+                console.log("Error playing sound: ", error);
+            }
+            
+            // Create mini particle burst
+            createParticles(balloon);
+            
+            setTimeout(() => balloon.remove(), 300);
+            
+            balloonsPopped++;
+            document.getElementById("counter").textContent = `${balloonsPopped}/${requiredPops} Popped`;
+
+            if (balloonsPopped >= requiredPops) {
+                gameActive = false; // Stop the game
+                document.getElementById("balloon-container").innerHTML = ""; // Remove balloons
+                document.getElementById("message").classList.remove("hidden");
+                
+                // Add confetti after winning
+                createConfetti();
+            }
+        }
+        
+        function createParticles(balloon) {
+            // Get the computed style to extract the actual gradient colors
+            const style = getComputedStyle(balloon);
+            const rect = balloon.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // Create 8 particles
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement("div");
+                particle.style.position = "fixed";
+                particle.style.width = "10px";
+                particle.style.height = "10px";
+                particle.style.background = style.background;
+                particle.style.borderRadius = "50%";
+                particle.style.left = centerX + "px";
+                particle.style.top = centerY + "px";
+                particle.style.zIndex = "6";
+                
+                // Random angle for particle direction
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 3;
+                const duration = 0.5 + Math.random() * 0.5;
+                
+                particle.style.transition = `all ${duration}s ease-out`;
+                document.body.appendChild(particle);
+                
+                // Animate particle outward
+                setTimeout(() => {
+                    const distance = 30 + Math.random() * 50;
+                    particle.style.transform = `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px) scale(0)`;
+                    particle.style.opacity = "0";
+                    
+                    // Clean up particle after animation
+                    setTimeout(() => particle.remove(), duration * 1000);
+                }, 10);
+            }
+        }
+        
+        function createConfetti() {
+            // Super vibrant confetti colors
+            const confettiColors = [
+                "#FF00FF", "#00FFFF", "#FFFF00", "#FF0099", 
+                "#00F5A0", "#AD1DEB", "#FFD700", "#FC466B", 
+                "#FA8BFF", "#8E2DE2", "#FF416C", "#00c6ff"
+            ];
+            
+            for (let i = 0; i < 150; i++) {
+                let confetti = document.createElement("div");
+                confetti.style.position = "fixed";
+                confetti.style.width = Math.random() * 10 + 5 + "px";
+                confetti.style.height = Math.random() * 10 + 5 + "px";
+                confetti.style.background = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+                confetti.style.top = "-10px";
+                confetti.style.left = Math.random() * 100 + "vw";
+                confetti.style.zIndex = "15";
+                confetti.style.borderRadius = Math.random() > 0.5 ? "50%" : "0";
+                confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+                
+                // Animate confetti
+                confetti.style.animation = `fall ${Math.random() * 3 + 2}s linear forwards`;
+                document.body.appendChild(confetti);
+                
+                // Add fall animation dynamically
+                let style = document.createElement('style');
+                style.innerHTML = `
+                    @keyframes fall {
+                        to {
+                            top: 100vh;
+                            transform: rotate(${Math.random() * 360 + 360}deg);
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+
+        // Start the game when page loads
+        window.onload = function() {
+            spawnBalloon(); // Start the balloon spawning
+        };
+    </script>
+</body>
+</html>
